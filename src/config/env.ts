@@ -27,7 +27,7 @@ const envSchema = z
     /** Comma-separated list of frontend origins allowed to call the API. */
     FRONTEND_URLS: z
       .string()
-      .default('http://localhost:5173')
+      .default('http://localhost:5174')
       .transform((v) =>
         v
           .split(',')
