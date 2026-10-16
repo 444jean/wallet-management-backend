@@ -4,7 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 
-// Requires a reachable database (pnpm db:up) and the env vars from the README.
+// Requires a reachable database and the env vars from the README.
 describe('App (e2e)', () => {
   let app: INestApplication<App>;
 

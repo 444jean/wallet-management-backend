@@ -6,21 +6,33 @@ API REST para **Mi Billetera** ([wallet-management-frontend](https://github.com/
 
 ## Puesta en marcha
 
-Requisitos: Node 22+, pnpm, Docker.
+Requisitos: Node 22+, pnpm y un proyecto en [Supabase](https://supabase.com) (se usa solo como PostgreSQL; la autenticación la maneja Better Auth en esta API).
 
 ```bash
 pnpm install          # también genera el cliente de Prisma
-pnpm db:up            # Postgres en localhost:5433 (docker compose)
 # crea el archivo .env (ver tabla abajo)
-pnpm db:migrate       # aplica las migraciones
+pnpm db:deploy        # crea las tablas en Supabase
 pnpm start:dev        # http://localhost:3000/api
 ```
+
+### Conexión a Supabase
+
+En el dashboard: **Connect → ORMs / Connection string**.
+
+- `DATABASE_URL` → **Session pooler** (`...pooler.supabase.com:5432`). La API es un servidor persistente, así que usa modo sesión (el modo transacción, puerto 6543, es para serverless).
+- `DIRECT_URL` → la misma URL del session pooler, o la conexión directa (`db.<ref>.supabase.co:5432`, solo IPv6) agregando `?sslmode=require`. La usa Prisma para las migraciones.
+- `DATABASE_CA_CERT` → **Project Settings → Database → SSL Configuration → Download certificate**. Pega el contenido PEM (en una línea con `\n` si tu hosting no acepta multilínea). Con él la API verifica el certificado del servidor; es obligatorio con `NODE_ENV=production`.
+- Activa también **Enforce SSL on incoming connections** en la misma sección.
+
+Usa una contraseña de base de datos larga y aleatoria, y no compartas estas URLs.
 
 ### Variables de entorno (`.env`)
 
 | Variable             | Ejemplo                                                          | Descripción                                            |
 | -------------------- | ---------------------------------------------------------------- | ------------------------------------------------------ |
-| `DATABASE_URL`       | `postgresql://wallet:wallet@localhost:5433/wallet?schema=public` | Conexión a Postgres                                    |
+| `DATABASE_URL`       | `postgresql://postgres.<ref>:<pass>@aws-0-<region>.pooler.supabase.com:5432/postgres` | Conexión de la app (session pooler) |
+| `DIRECT_URL`         | igual que arriba + `?sslmode=require`                             | Conexión para `prisma migrate`                         |
+| `DATABASE_CA_CERT`   | `-----BEGIN CERTIFICATE-----\n...`                               | CA de Supabase; obligatorio en producción              |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32`                                        | Secreto para firmar sesiones (mín. 32 caracteres)      |
 | `BETTER_AUTH_URL`    | `http://localhost:3000`                                          | URL pública de esta API                                |
 | `FRONTEND_URLS`      | `http://localhost:5173`                                          | Orígenes permitidos (CORS + Better Auth), separados por coma |
@@ -36,8 +48,7 @@ Las variables se validan al arrancar (`src/config/env.ts`); si falta alguna, la 
 | ----------------------- | ------------------------------------------------ |
 | `pnpm start:dev`        | Servidor con watch                               |
 | `pnpm build` / `pnpm start:prod` | Compilar / ejecutar `dist/`             |
-| `pnpm db:up` / `db:down`| Levantar / bajar Postgres                        |
-| `pnpm db:migrate`       | Crear/aplicar migraciones en desarrollo          |
+| `pnpm db:migrate`       | Crear/aplicar migraciones (usa un *shadow database* temporal; ojo, apunta a Supabase) |
 | `pnpm db:deploy`        | Aplicar migraciones en producción                |
 | `pnpm db:studio`        | Prisma Studio                                    |
 | `pnpm test` / `test:e2e`| Tests unitarios / e2e (e2e requiere la BD)       |
