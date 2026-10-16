@@ -4,11 +4,13 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { env } from '../config/env.js';
 
 /**
- * TLS is always on (Supabase requires it). With the Supabase CA the server
- * certificate is fully verified; without it (development only, enforced in
- * env.ts) traffic is still encrypted but the certificate is not checked.
+ * TLS is on unless DATABASE_SSL=false (local/CI only; Supabase requires it).
+ * With the Supabase CA the server certificate is fully verified; without it
+ * (development only, enforced in env.ts) traffic is still encrypted but the
+ * certificate is not checked.
  */
-function sslOptions(): ConnectionOptions {
+function sslOptions(): ConnectionOptions | false {
+  if (!env.DATABASE_SSL) return false;
   if (env.DATABASE_CA_CERT) {
     return { ca: env.DATABASE_CA_CERT, rejectUnauthorized: true };
   }

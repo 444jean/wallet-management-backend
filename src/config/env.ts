@@ -6,7 +6,7 @@ const envSchema = z
     NODE_ENV: z
       .enum(['development', 'production', 'test'])
       .default('development'),
-    PORT: z.coerce.number().int().positive().default(3000),
+    PORT: z.coerce.number().int().positive().default(4001),
     /** Supabase session pooler (or direct) connection used by the app. */
     DATABASE_URL: z.url(),
     /**
@@ -17,6 +17,11 @@ const envSchema = z
       .string()
       .transform((v) => v.replace(/\\n/g, '\n'))
       .optional(),
+    /** "false" disables TLS for a local/CI Postgres. Not allowed in production. */
+    DATABASE_SSL: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((v) => v === 'true'),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     /** Comma-separated list of frontend origins allowed to call the API. */
@@ -38,6 +43,13 @@ const envSchema = z
         code: 'custom',
         path: ['DATABASE_CA_CERT'],
         message: 'Required in production to verify the database certificate',
+      });
+    }
+    if (e.NODE_ENV === 'production' && !e.DATABASE_SSL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DATABASE_SSL'],
+        message: 'TLS cannot be disabled in production',
       });
     }
   });
