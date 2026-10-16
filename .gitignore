@@ -1,0 +1,28 @@
+# compiled output
+/dist
+/node_modules
+/build
+/coverage
+
+# Prisma generated client
+/src/generated
+
+# Logs
+*.log
+
+# OS / IDE
+.DS_Store
+.idea
+.vscode/*
+!.vscode/settings.json
+
+# Env
+.env
+.env.*
+!.env.example
+
+# tests
+/.nyc_output
+
+# TypeScript incremental build info
+*.tsbuildinfo

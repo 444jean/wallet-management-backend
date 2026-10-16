@@ -1,0 +1,150 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth (core schema: user, session, account, verification)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  sessions     Session[]
+  accounts     Account[]
+  transactions Transaction[]
+  goals        SavingsGoal[]
+  salary       SalaryConfig?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Wallet domain
+// Amounts are whole CLP (no decimals), stored as Int.
+// ---------------------------------------------------------------------------
+
+enum TransactionType {
+  income
+  expense
+}
+
+enum TransactionSource {
+  salary
+}
+
+model Transaction {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  amount      Int
+  category    String
+  description String
+  date        DateTime           @db.Date
+  source      TransactionSource?
+  /// "YYYY-MM" for auto-generated salary rows; guarantees one salary per month.
+  salaryMonth String?
+  goalId      String?
+  goal        SavingsGoal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([userId, salaryMonth])
+  @@index([userId, date])
+  @@index([goalId])
+  @@map("transactions")
+}
+
+model SavingsGoal {
+  id                  String        @id @default(cuid())
+  userId              String
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  target              Int
+  current             Int           @default(0)
+  monthlyContribution Int           @default(0)
+  /// Annual percentage rate, e.g. 4 = 4%.
+  annualRate          Float         @default(0)
+  deadline            DateTime?     @db.Date
+  contributions       Transaction[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("savings_goals")
+}
+
+model SalaryConfig {
+  userId      String   @id
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Int
+  category    String
+  description String
+  /// Day of month the salary is paid (capped to the month's last day).
+  day         Int
+  /// First month to generate, "YYYY-MM".
+  since       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("salary_configs")
+}
