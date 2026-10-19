@@ -22,11 +22,14 @@ model User {
   palette       String   @default("purple")
   /// light | dark; null = follow the device.
   theme         String?
+  /// Set by the twoFactor plugin once TOTP is verified (T02 3b).
+  twoFactorEnabled Boolean? @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
 
   sessions     Session[]
   accounts     Account[]
+  twoFactors   TwoFactor[]
   transactions Transaction[]
   goals        SavingsGoal[]
   salary       SalaryConfig?
@@ -79,6 +82,49 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+/// Better Auth twoFactor plugin (T02 3b): TOTP secret and backup codes, both
+/// encrypted with BETTER_AUTH_SECRET by the plugin.
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// false until the first TOTP code is verified.
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
+}
+
+/// Global API rate limit (@nestjs/throttler, T03). One row per tracker+route
+/// window, shared by every server instance. Written with raw SQL by
+/// src/common/prisma-throttler.storage.ts.
+model ApiRateLimit {
+  key          String    @id
+  hits         Int
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  blockedUntil DateTime? @map("blocked_until") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("api_rate_limit")
+}
+
+/// Better Auth rate limit counters (rateLimit.storage = "database", T02).
+/// Shared by every server instance, unlike the in-memory default.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  /// Epoch milliseconds of the window's last request.
+  lastRequest BigInt
+
+  @@map("rateLimit")
 }
 
 // ---------------------------------------------------------------------------
