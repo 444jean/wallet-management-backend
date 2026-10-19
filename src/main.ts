@@ -1,16 +1,19 @@
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { env } from './config/env.js';
 import { AppModule } from './app.module.js';
+import { configureApp } from './app.setup.js';
+import { safeLogger } from './common/safe-logger.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Better Auth needs the raw body; the auth module re-adds the JSON and
-    // urlencoded parsers for every other route.
+    // urlencoded parsers (1 MB limit) for every other route.
     bodyParser: false,
+    logger: safeLogger,
   });
 
-  app.setGlobalPrefix('api');
-  app.enableCors({ origin: env.FRONTEND_URLS, credentials: true });
+  configureApp(app);
   app.enableShutdownHooks();
 
   await app.listen(env.PORT);

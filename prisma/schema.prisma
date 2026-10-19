@@ -102,6 +102,19 @@ model TwoFactor {
   @@map("twoFactor")
 }
 
+/// Global API rate limit (@nestjs/throttler, T03). One row per tracker+route
+/// window, shared by every server instance. Written with raw SQL by
+/// src/common/prisma-throttler.storage.ts.
+model ApiRateLimit {
+  key          String    @id
+  hits         Int
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  blockedUntil DateTime? @map("blocked_until") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("api_rate_limit")
+}
+
 /// Better Auth rate limit counters (rateLimit.storage = "database", T02).
 /// Shared by every server instance, unlike the in-memory default.
 model RateLimit {

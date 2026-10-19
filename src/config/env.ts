@@ -36,6 +36,18 @@ const envSchema = z
       ),
     /** Timezone used to decide "today" / "current month" (salary generation). */
     APP_TIMEZONE: z.string().default('America/Santiago'),
+    /** Requests per minute and IP for the wallet API (auth has its own limit). */
+    API_RATE_LIMIT: z.coerce.number().int().positive().default(120),
+    /**
+     * Express "trust proxy": "false" (default, direct connections), "true", or
+     * the number of proxies in front of the app. Decides req.ip, the key of
+     * the rate limit. Set it for the hosting in T05.
+     */
+    TRUST_PROXY: z
+      .string()
+      .default('false')
+      .transform((v) => (v === 'true' ? true : v === 'false' ? false : Number(v)))
+      .pipe(z.union([z.boolean(), z.number().int().nonnegative()])),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === 'production' && !e.DATABASE_CA_CERT) {

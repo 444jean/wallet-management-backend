@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { haveIBeenPwned, twoFactor } from 'better-auth/plugins';
+import { safeLogger } from '../common/safe-logger.js';
 import { env } from '../config/env.js';
 import { prisma } from '../prisma/prisma.js';
 import { paletteSchema, themeSchema } from './appearance.js';
@@ -26,6 +27,13 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: env.FRONTEND_URLS,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
+  // Better Auth logs through the redacting app logger (T03).
+  logger: {
+    log: (level, message, ...args) => {
+      const method = level === 'info' ? 'log' : level;
+      safeLogger[method](message, ...args, 'BetterAuth');
+    },
+  },
   user: {
     // Account deletion (POST /api/auth/delete-user). The front always sends
     // the password; every user-owned row goes with ON DELETE CASCADE.
