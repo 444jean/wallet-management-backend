@@ -1,0 +1,32 @@
+# Dependency update PRs (T04, trial of Dependabot instead of Renovate).
+# Weekly, against dev; minor + patch grouped, majors one PR each; no automerge.
+# Security updates are enabled in the repo settings and target main.
+version: 2
+
+updates:
+  - package-ecosystem: npm # also covers pnpm (pnpm-lock.yaml)
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: America/Santiago
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: America/Santiago
+    labels: [dependencies]
+    groups:
+      github-actions:
+        patterns: ['*']
