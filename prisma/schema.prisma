@@ -18,6 +18,10 @@ model User {
   email         String   @unique
   emailVerified Boolean  @default(false)
   image         String?
+  /// Brand palette (T08): purple | red | pink | green | amber.
+  palette       String   @default("purple")
+  /// light | dark; null = follow the device.
+  theme         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
 

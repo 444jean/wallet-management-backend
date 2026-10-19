@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { env } from '../config/env.js';
 import { prisma } from '../prisma/prisma.js';
+import { paletteSchema, themeSchema } from './appearance.js';
 
 export const auth = betterAuth({
   basePath: '/api/auth',
@@ -9,6 +10,25 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: env.FRONTEND_URLS,
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
+  user: {
+    // Appearance preferences (T08). They travel in the session and are
+    // updated with authClient.updateUser().
+    additionalFields: {
+      palette: {
+        type: 'string',
+        required: false,
+        defaultValue: 'purple',
+        input: true,
+        validator: { input: paletteSchema },
+      },
+      theme: {
+        type: 'string',
+        required: false,
+        input: true,
+        validator: { input: themeSchema },
+      },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
