@@ -100,7 +100,8 @@ export const auth = betterAuth({
   plugins: [
     // Optional 2FA: TOTP (authenticator app) + 10 backup codes. Enabling it
     // asks for the password and only takes effect after the first valid code.
-    twoFactor({ issuer: 'Mi Billetera' }),
+    // Name shown in authenticator apps (T14).
+    twoFactor({ issuer: 'Mis Chauchitas' }),
     // Rejects passwords found in public breaches (sign-up, change, reset).
     // k-anonymity: only 5 chars of the SHA-1 leave the server.
     haveIBeenPwned({
