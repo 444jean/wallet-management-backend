@@ -2,6 +2,9 @@ generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "esm"
+  // Explicit: with tsconfig "bundler" Prisma would infer extensionless
+  // imports, which Node ESM cannot load (T05).
+  importFileExtension = "js"
 }
 
 datasource db {
