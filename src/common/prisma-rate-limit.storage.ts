@@ -1,8 +1,13 @@
-import type { ThrottlerStorage } from '@nestjs/throttler';
 import type { PrismaClient } from '../generated/prisma/client.js';
 
-/** Not exported by the package index. */
-type ThrottlerStorageRecord = Awaited<ReturnType<ThrottlerStorage['increment']>>;
+export interface RateLimitRecord {
+  totalHits: number;
+  /** Seconds until the window ends. */
+  timeToExpire: number;
+  isBlocked: boolean;
+  /** Seconds until the block ends (0 when not blocked). */
+  timeToBlockExpire: number;
+}
 
 interface Row {
   hits: number;
@@ -12,12 +17,12 @@ interface Row {
 }
 
 /**
- * @nestjs/throttler storage on Postgres (table api_rate_limit), so the limit
+ * Rate-limit storage on Postgres (table api_rate_limit), so the limit
  * is shared by every instance (Vercel functions, T05) and survives restarts.
  * Fixed window per key: the first hit opens a window of `ttl` ms; going over
  * `limit` blocks the key for `blockDuration` ms. One atomic upsert per request.
  */
-export class PrismaThrottlerStorage implements ThrottlerStorage {
+export class PrismaRateLimitStorage {
   constructor(private readonly prisma: PrismaClient) {}
 
   async increment(
@@ -25,7 +30,7 @@ export class PrismaThrottlerStorage implements ThrottlerStorage {
     ttl: number,
     limit: number,
     blockDuration: number,
-  ): Promise<ThrottlerStorageRecord> {
+  ): Promise<RateLimitRecord> {
     const [row] = await this.prisma.$queryRaw<Row[]>`
       INSERT INTO api_rate_limit (key, hits, expires_at)
       VALUES (${key}, 1, now() + make_interval(secs => ${ttl}::float8 / 1000))
