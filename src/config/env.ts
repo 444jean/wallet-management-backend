@@ -22,6 +22,11 @@ const envSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((v) => v === 'true'),
+    /**
+     * Connections per pool. Each serverless instance has its own pool, so
+     * keep it small in production (~3 on Vercel) to not exhaust Supabase.
+     */
+    DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     /** Comma-separated list of frontend origins allowed to call the API. */

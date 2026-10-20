@@ -35,6 +35,6 @@ export const prisma = new PrismaClient({
   adapter: new PrismaPg({
     connectionString: withoutSslMode(env.DATABASE_URL),
     ssl: sslOptions(),
-    max: 10,
+    max: env.DATABASE_POOL_MAX,
   }),
 });

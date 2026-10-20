@@ -26,3 +26,6 @@
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Vercel CLI (local builds / link)
+.vercel

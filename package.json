@@ -4,6 +4,7 @@
   "description": "REST API for Mi Billetera (NestJS + Prisma + Better Auth)",
   "author": "",
   "private": true,
+  "packageManager": "pnpm@11.1.2",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {

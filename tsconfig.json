@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    // "bundler" instead of "nodenext": Vercel type-checks src/main.ts with its
+    // own compiler host, which resolves packages without the ESM mode and
+    // picks CJS types (e.g. helmet is "not callable"). Imports keep ".js" (T05).
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
