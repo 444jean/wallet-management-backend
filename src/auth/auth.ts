@@ -21,6 +21,9 @@ const PASSWORD_FIELDS: Record<string, string> = {
   '/reset-password': 'newPassword',
 };
 
+/** Endpoints whose body may carry user.image; it is set only by the avatar API. */
+const IMAGE_PATHS = new Set(['/update-user', '/sign-up/email']);
+
 export const auth = betterAuth({
   basePath: '/api/auth',
   baseURL: env.BETTER_AUTH_URL,
@@ -77,6 +80,13 @@ export const auth = betterAuth({
   hooks: {
     // Digit + special character on every endpoint that sets a password.
     before: createAuthMiddleware(async (ctx) => {
+      // user.image only ever points at the uploaded picture (T12, /api/me/avatar).
+      if (IMAGE_PATHS.has(ctx.path) && ctx.body && 'image' in (ctx.body as object)) {
+        throw new APIError('BAD_REQUEST', {
+          message: 'La foto de perfil se cambia en /api/me/avatar.',
+          code: 'IMAGE_NOT_EDITABLE',
+        });
+      }
       const field = PASSWORD_FIELDS[ctx.path];
       if (!field) return;
       const password: unknown = (ctx.body as Record<string, unknown> | undefined)?.[field];

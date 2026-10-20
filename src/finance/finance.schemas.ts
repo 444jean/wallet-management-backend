@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { goalInput } from '../goals/goals.schemas.js';
+import { deadlineNeedsTarget, goalFields } from '../goals/goals.schemas.js';
 import { salaryInput } from '../salary/salary.schemas.js';
 import { transactionInput } from '../transactions/transactions.schemas.js';
 
@@ -16,7 +16,9 @@ export const financeImport = z.object({
       }),
     )
     .max(20_000),
-  goals: z.array(goalInput.extend({ id: z.string() })).max(500),
+  goals: z
+    .array(goalFields.extend({ id: z.string() }).superRefine(deadlineNeedsTarget))
+    .max(500),
   salary: salaryInput.nullable(),
   /** Required to overwrite an account that already has data. */
   replace: z.boolean().default(false),

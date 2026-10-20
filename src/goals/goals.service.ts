@@ -1,17 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient, type SavingsGoal } from '../generated/prisma/client.js';
 import { parseISODate, toISODate } from '../common/dates.js';
-import type { GoalInput, GoalPatch } from './goals.schemas.js';
+import { DEADLINE_WITHOUT_TARGET, type GoalInput, type GoalPatch } from './goals.schemas.js';
 
 /** API shape — matches the frontend's `SavingsGoal` type. */
 export interface GoalDto {
   id: string;
   name: string;
-  target: number;
+  /** null = "Fondo" (no target, T10). */
+  target: number | null;
   current: number;
   monthlyContribution: number;
   annualRate: number;
   deadline?: string;
+  /** Code from institutions.ts (T11). */
+  institution?: string;
 }
 
 export function toGoalDto(g: SavingsGoal): GoalDto {
@@ -23,6 +26,7 @@ export function toGoalDto(g: SavingsGoal): GoalDto {
     monthlyContribution: g.monthlyContribution,
     annualRate: g.annualRate,
     ...(g.deadline ? { deadline: toISODate(g.deadline) } : {}),
+    ...(g.institution ? { institution: g.institution } : {}),
   };
 }
 
@@ -55,10 +59,17 @@ export class GoalsService {
   }
 
   async update(userId: string, id: string, patch: GoalPatch) {
-    await this.findOwned(userId, id);
+    const goal = await this.findOwned(userId, id);
+    const target = patch.target === undefined ? goal.target : patch.target;
+    let deadline = deadlineValue(patch.deadline);
+    if (target === null) {
+      // Removing the target turns the goal into a "Fondo": no deadline.
+      if (patch.deadline) throw new BadRequestException(DEADLINE_WITHOUT_TARGET);
+      if (goal.deadline) deadline = null;
+    }
     const row = await this.prisma.savingsGoal.update({
       where: { id },
-      data: { ...patch, deadline: deadlineValue(patch.deadline) },
+      data: { ...patch, deadline },
     });
     return toGoalDto(row);
   }

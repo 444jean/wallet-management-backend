@@ -36,8 +36,21 @@ model User {
   transactions Transaction[]
   goals        SavingsGoal[]
   salary       SalaryConfig?
+  avatar       UserAvatar?
 
   @@map("user")
+}
+
+/// Profile picture (T12): 256x256 image cropped in the browser, served only
+/// to its owner by GET /api/me/avatar.
+model UserAvatar {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Bytes
+  mimeType  String
+  updatedAt DateTime @updatedAt
+
+  @@map("user_avatar")
 }
 
 model Session {
@@ -172,12 +185,15 @@ model SavingsGoal {
   userId              String
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                String
-  target              Int
+  /// null = "Fondo": savings without a target amount (T10).
+  target              Int?
   current             Int           @default(0)
   monthlyContribution Int           @default(0)
   /// Annual percentage rate, e.g. 4 = 4%.
   annualRate          Float         @default(0)
   deadline            DateTime?     @db.Date
+  /// Where it is kept: a code from src/goals/institutions.ts (T11).
+  institution         String?
   contributions       Transaction[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
