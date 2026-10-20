@@ -103,10 +103,14 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // refresh once a day
   },
   advanced: {
-    // Frontend and API may live on different sites in production.
+    // In production the front's Vercel rewrite proxies /api, so the browser
+    // sees a single origin and the cookie is first-party (T05).
     defaultCookieAttributes:
       env.NODE_ENV === 'production'
-        ? { sameSite: 'none', secure: true }
+        ? { sameSite: 'lax', secure: true }
         : undefined,
+    // Rate-limit key. Vercel sends the visitor IP as a single value in
+    // x-real-ip (also through the rewrite); x-forwarded-for is the fallback.
+    ipAddress: { ipAddressHeaders: ['x-real-ip', 'x-forwarded-for'] },
   },
 });
