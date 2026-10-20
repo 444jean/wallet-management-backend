@@ -18,4 +18,10 @@ async function bootstrap() {
 
   await app.listen(env.PORT);
 }
-await bootstrap();
+// Not awaited: Vercel's launcher patches listen() to capture the server
+// without ever calling its callback, and waits for this module's import to
+// finish. A top-level await would deadlock until the function times out (T05).
+bootstrap().catch((err: unknown) => {
+  console.error(err);
+  process.exit(1);
+});
