@@ -36,5 +36,8 @@ export const prisma = new PrismaClient({
     connectionString: withoutSslMode(env.DATABASE_URL),
     ssl: sslOptions(),
     max: env.DATABASE_POOL_MAX,
+    // Fail fast with a logged error instead of hanging until the function
+    // times out when the database is unreachable (T05).
+    connectionTimeoutMillis: 10_000,
   }),
 });
