@@ -37,6 +37,7 @@ model User {
   goals        SavingsGoal[]
   salary       SalaryConfig?
   avatar       UserAvatar?
+  creditCards  CreditCard[]
 
   @@map("user")
 }
@@ -200,6 +201,50 @@ model SavingsGoal {
 
   @@index([userId])
   @@map("savings_goals")
+}
+
+/// Credit card (T15): limit and billing days. Installments, used limit and the
+/// monthly simulation are computed in the frontend (src/lib/credit.ts).
+model CreditCard {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  /// Issuing bank: a code from src/goals/institutions.ts.
+  institution String?
+  /// Total credit limit ("cupo"), whole CLP.
+  creditLimit Int
+  /// Statement closing day of the month (1-31).
+  closingDay  Int
+  /// Payment due day of the month (1-31).
+  paymentDay  Int
+  purchases   CreditCardPurchase[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("credit_cards")
+}
+
+/// A purchase paid in installments on a credit card (T15). Not a transaction:
+/// the monthly card payment is recorded by the user as a normal expense.
+model CreditCardPurchase {
+  id           String     @id @default(cuid())
+  cardId       String
+  card         CreditCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  description  String
+  /// Price of the purchase, before interest.
+  amount       Int
+  /// Number of installments (1-60).
+  installments Int
+  /// Monthly interest rate in percent; 0 = interest-free.
+  monthlyRate  Float      @default(0)
+  date         DateTime   @db.Date
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([cardId])
+  @@map("credit_card_purchases")
 }
 
 model SalaryConfig {

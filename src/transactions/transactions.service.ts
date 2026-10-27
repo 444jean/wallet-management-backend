@@ -15,6 +15,17 @@ import type {
 
 type Tx = Prisma.TransactionClient;
 
+export const WITHDRAWAL_EXCEEDS_SAVED =
+  'No puedes retirar más de lo que tienes ahorrado.';
+
+/**
+ * Effect of a transaction linked to a goal on `goal.current`: an expense is a
+ * contribution (+amount), an income is a withdrawal (-amount, T16).
+ */
+export function goalDelta(type: 'income' | 'expense', amount: number) {
+  return type === 'expense' ? amount : -amount;
+}
+
 @Injectable()
 export class TransactionsService {
   constructor(
@@ -47,10 +58,16 @@ export class TransactionsService {
 
   async create(userId: string, input: TransactionInput) {
     const goalId = input.goalId ?? null;
-    this.assertGoalContributionIsExpense(input.type, goalId);
 
     const created = await this.prisma.$transaction(async (tx) => {
-      if (goalId) await this.assertGoalOwned(tx, userId, goalId);
+      if (goalId) {
+        await this.assertGoalBalance(
+          tx,
+          userId,
+          goalId,
+          goalDelta(input.type, input.amount),
+        );
+      }
 
       const row = await tx.transaction.create({
         data: {
@@ -63,7 +80,9 @@ export class TransactionsService {
           goalId,
         },
       });
-      if (goalId) await this.adjustGoalCurrent(tx, goalId, row.amount);
+      if (goalId) {
+        await this.adjustGoalCurrent(tx, goalId, goalDelta(row.type, row.amount));
+      }
       return row;
     });
     return toTransactionDto(created);
@@ -76,9 +95,13 @@ export class TransactionsService {
       const type = patch.type ?? prev.type;
       const amount = patch.amount ?? prev.amount;
       const goalId = patch.goalId === undefined ? prev.goalId : patch.goalId;
-      this.assertGoalContributionIsExpense(type, goalId);
-      if (goalId && goalId !== prev.goalId) {
-        await this.assertGoalOwned(tx, userId, goalId);
+      const prevDelta = prev.goalId ? goalDelta(prev.type, prev.amount) : 0;
+      const nextDelta = goalId ? goalDelta(type, amount) : 0;
+      if (goalId) {
+        // The goal must still be able to absorb the change once the previous
+        // movement on it (if it was the same goal) is reverted.
+        const revert = goalId === prev.goalId ? -prevDelta : 0;
+        await this.assertGoalBalance(tx, userId, goalId, revert + nextDelta);
       }
 
       const row = await tx.transaction.update({
@@ -93,10 +116,9 @@ export class TransactionsService {
         },
       });
 
-      // Revert the previous contribution (if any) and apply the new one.
-      if (prev.goalId)
-        await this.adjustGoalCurrent(tx, prev.goalId, -prev.amount);
-      if (goalId) await this.adjustGoalCurrent(tx, goalId, amount);
+      // Revert the previous movement on its goal (if any) and apply the new one.
+      if (prev.goalId) await this.adjustGoalCurrent(tx, prev.goalId, -prevDelta);
+      if (goalId) await this.adjustGoalCurrent(tx, goalId, nextDelta);
       return row;
     });
     return toTransactionDto(updated);
@@ -106,8 +128,13 @@ export class TransactionsService {
     await this.prisma.$transaction(async (tx) => {
       const prev = await this.findOwned(tx, userId, id);
       await tx.transaction.delete({ where: { id } });
-      if (prev.goalId)
-        await this.adjustGoalCurrent(tx, prev.goalId, -prev.amount);
+      if (prev.goalId) {
+        await this.adjustGoalCurrent(
+          tx,
+          prev.goalId,
+          -goalDelta(prev.type, prev.amount),
+        );
+      }
     });
   }
 
@@ -117,17 +144,23 @@ export class TransactionsService {
     return row;
   }
 
-  private async assertGoalOwned(tx: Tx, userId: string, goalId: string) {
+  /**
+   * The goal must belong to the user and, after applying `delta` to it, must
+   * not go negative (a withdrawal cannot exceed what is saved, T16).
+   */
+  private async assertGoalBalance(
+    tx: Tx,
+    userId: string,
+    goalId: string,
+    delta: number,
+  ) {
     const goal = await tx.savingsGoal.findFirst({
       where: { id: goalId, userId },
-      select: { id: true },
+      select: { current: true },
     });
     if (!goal) throw new BadRequestException('Savings goal not found');
-  }
-
-  private assertGoalContributionIsExpense(type: string, goalId: string | null) {
-    if (goalId && type !== 'expense') {
-      throw new BadRequestException('Goal contributions must be expenses');
+    if (goal.current + delta < 0) {
+      throw new BadRequestException(WITHDRAWAL_EXCEEDS_SAVED);
     }
   }
 

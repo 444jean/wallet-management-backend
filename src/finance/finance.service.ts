@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { Prisma, PrismaClient } from '../generated/prisma/client.js';
+import { CARD_INCLUDE, toCardDto } from '../cards/cards.service.js';
 import { parseISODate } from '../common/dates.js';
 import { toGoalDto } from '../goals/goals.service.js';
 import { SalaryService } from '../salary/salary.service.js';
@@ -17,7 +18,7 @@ export class FinanceService {
   async snapshot(userId: string) {
     await this.salary.reconcile(userId);
 
-    const [transactions, goals, salary] = await Promise.all([
+    const [transactions, goals, salary, cards] = await Promise.all([
       this.prisma.transaction.findMany({
         where: { userId },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -27,12 +28,18 @@ export class FinanceService {
         orderBy: { createdAt: 'asc' },
       }),
       this.salary.get(userId),
+      this.prisma.creditCard.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+        include: CARD_INCLUDE,
+      }),
     ]);
 
     return {
       transactions: transactions.map(toTransactionDto),
       goals: goals.map(toGoalDto),
       salary,
+      cards: cards.map(toCardDto),
     };
   }
 
@@ -99,17 +106,20 @@ export class FinanceService {
   }
 
   private async hasData(tx: Prisma.TransactionClient, userId: string) {
-    const [t, g, s] = await Promise.all([
+    const [t, g, s, c] = await Promise.all([
       tx.transaction.count({ where: { userId } }),
       tx.savingsGoal.count({ where: { userId } }),
       tx.salaryConfig.count({ where: { userId } }),
+      tx.creditCard.count({ where: { userId } }),
     ]);
-    return t + g + s > 0;
+    return t + g + s + c > 0;
   }
 
   private async deleteAll(tx: Prisma.TransactionClient, userId: string) {
     await tx.transaction.deleteMany({ where: { userId } });
     await tx.savingsGoal.deleteMany({ where: { userId } });
     await tx.salaryConfig.deleteMany({ where: { userId } });
+    // Purchases go with their cards (ON DELETE CASCADE).
+    await tx.creditCard.deleteMany({ where: { userId } });
   }
 }

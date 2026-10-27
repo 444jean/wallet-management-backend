@@ -4,6 +4,7 @@ import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AppController } from './app.controller.js';
 import { auth } from './auth/auth.js';
 import { AvatarModule } from './avatar/avatar.module.js';
+import { CardsModule } from './cards/cards.module.js';
 import { ApiRateLimitGuard } from './common/api-rate-limit.guard.js';
 import { FinanceModule } from './finance/finance.module.js';
 import { GoalsModule } from './goals/goals.module.js';
@@ -31,6 +32,7 @@ export const BODY_LIMIT = '1mb';
     SalaryModule,
     FinanceModule,
     AvatarModule,
+    CardsModule,
   ],
   controllers: [AppController],
   // Global per-IP limit for the wallet API (T03).

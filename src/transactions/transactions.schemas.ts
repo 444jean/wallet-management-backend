@@ -7,7 +7,10 @@ export const transactionInput = z.object({
   category: z.string().trim().min(1).max(50),
   description: z.string().trim().max(200).default(''),
   date: isoDate,
-  /** Expense that is a contribution to a savings goal. */
+  /**
+   * Linked savings goal: an expense is a contribution, an income is a
+   * withdrawal (T16).
+   */
   goalId: z.string().min(1).nullish(),
 });
 export type TransactionInput = z.infer<typeof transactionInput>;
